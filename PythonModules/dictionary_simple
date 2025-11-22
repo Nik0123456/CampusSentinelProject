@@ -1,0 +1,15 @@
+#
+# Diccionario RADIUS mínimo y 100% compatible con pyrad
+#
+
+ATTRIBUTE       User-Name                       1       string
+ATTRIBUTE       User-Password                   2       string
+ATTRIBUTE       NAS-IP-Address                  4       ipaddr
+ATTRIBUTE       NAS-Port                        5       integer
+ATTRIBUTE       Service-Type                    6       integer
+ATTRIBUTE       NAS-Identifier                  32      string
+ATTRIBUTE       Calling-Station-Id              31      string
+ATTRIBUTE       Framed-IP-Address               8       ipaddr
+
+VALUE           Service-Type            Framed-User             2
+VALUE           Service-Type            Login-User              1

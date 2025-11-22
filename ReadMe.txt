@@ -1,11 +1,12 @@
-Autor original:
+Autores:
 
     Tony Flores - Nik0123456
-
+    Christian Flores - Cjfs2005
+    
 Comentario del autor: 
 
     Para trabajar en versiones más complejas que implementen nuevas funcionalidades y que requieran trabajo colaborativo 
-    se está diseñando el codigo de este proyecto de forma modular. 
+    se está diseñando el codigo de este proyecto de forma modular. Los módulos de python se pueden ejecutar independientemente cada uno, pero los módulos de java están escritos para ser compilados junto al controlador Floodlight
 
 Recomendaciones: 
 
@@ -16,7 +17,11 @@ Recomendaciones:
 
     Para crear un nuevo venv y acceder a este:
 
+        1) Creación
+        
         python -m venv venv
+        
+        2) Ejecucion 
         source venv/bin/activate  # Linux/Mac
         .\venv\Scripts\activate   # Windows
         

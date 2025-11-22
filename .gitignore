@@ -1,3 +1,41 @@
+# Python
 __pycache__/
-*.pyc
-*.pyo
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual Environment
+myenv/
+venv/
+env/
+ENV/
+.venv/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+
+# Configuración sensible
+.env
+*.secret
+
+# Java
+*.class
+*.jar
+*.war
+*.ear
+target/
+build/
+.gradle/
+
+# Sistema
+Thumbs.db
+.DS_Store
