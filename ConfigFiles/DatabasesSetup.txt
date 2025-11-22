@@ -1,0 +1,74 @@
+1) Instalar MySQL Server 
+
+sudo apt install mysql-server -y
+sudo mysql_secure_installation
+
+2) Crear las bases de datos en MySQL Server
+
+CREATE DATABASE radius;
+CREATE DATABASE mydb;
+CREATE USER 'campus'@'localhost' IDENTIFIED BY 'SQLgrupo3?';
+GRANT ALL PRIVILEGES ON *.* TO 'campus'@'localhost';
+FLUSH PRIVILEGES;
+CREATE USER 'radius'@'localhost' IDENTIFIED BY 'RadiusPass2025!';
+GRANT ALL PRIVILEGES ON radius.* TO 'radius'@'localhost';
+FLUSH PRIVILEGES;
+EXIT;
+
+3) Instalar FreeRadius con integración de MySQL 
+
+sudo apt install freeradius freeradius-mysql freeradius-utils -y
+
+4) Importar el schema de radius a mysql 
+
+sudo mysql -u root -p radius < /etc/freeradius/3.0/mods-config/sql/main/mysql/schema.sql
+
+5) Habilitar la modificación SQL en FreeRadius
+
+sudo ln -s /etc/freeradius/3.0/mods-available/sql /etc/freeradius/3.0/mods-enabled/
+
+6) Ingresar al archivo de configuración de modificaciones de FreeRadius 
+
+sudo nano /etc/freeradius/3.0/mods-enabled/sql
+
+7) Buscar la sección 'sql' y reemplazar con el siguiente contenido
+
+dialect = "mysql"
+server = "localhost"
+port = 3306
+login = "radius"
+password = "RadiusPass2025!"
+radius_db = "radius"
+read_clients = yes
+
+8) Guardar el archivo de configuración 
+
+9) Configura el cliente Flash (Comunicación local desde los módulos de Python)
+
+sudo nano /etc/freeradius/3.0/clients.conf
+
+10) En la parte final de archivo agregar el siguiente contenido 
+
+client flask_local {
+    ipaddr = 127.0.0.1
+    secret = testing123
+    require_message_authenticator = no
+}
+
+11) Configurar la autorización de conexiones SQL en FreeRadius (en ambos archivos)
+
+sudo nano /etc/freeradius/3.0/sites-enabled/default
+sudo nano /etc/freeradius/3.0/sites-enabled/inner-tunnel
+
+12) En la sección `authorize {}` agrega `sql` (después de `files` o `preprocess`):
+
+13) Probar que la configuración sea exitosa
+
+sudo freeradius -XC
+
+Debe aparecer "Configuration appears to be OK" o "Ready to process requests"
+
+14) Configuramos FreeRadius como servicio del sistema
+
+sudo systemctl enable freeradius
+sudo systemctl start freeradius

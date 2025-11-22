@@ -1,0 +1,73 @@
+1) Instalación del servidor DHCP 
+
+# En el controller (192.168.200.200) 
+sudo apt update 
+sudo apt install dnsmasq -y 
+sudo systemctl stop dnsmasq 
+# Hacer backup de la configuración original 
+sudo cp /etc/dnsmasq.conf /etc/dnsmasq.conf.backup 
+# Limpiar configuraciones existentes 
+sudo rm -f /etc/dnsmasq.d/*
+
+2) Creación del archivo de configuración DHCP
+ 
+sudo bash -c 'cat > /etc/dnsmasq.d/dhcp-sdn.conf << EOF 
+# =================================================== 
+# Configuración DHCP para red SDN 
+# Fecha: 2025-11-01 13:34:37 UTC 
+# Usuario: Cjfs2005 
+# Lease Time: 4 horas 
+# =================================================== 
+# Interface conectada a los switches OVS 
+interface=ens4 
+bind-interfaces 
+# No leer archivos del sistema 
+no-resolv 
+no-hosts 
+# Rango DHCP con lease de 4 horas 
+dhcp-range=192.168.200.10,192.168.200.254,255.255.255.0,4h 
+# ===== Opciones DHCP (RFC 2132) ===== 
+# Option 3: Router/Gateway 
+dhcp-option=3,192.168.200.200 
+# Option 6: DNS Servers 
+dhcp-option=6,8.8.8.8,8.8.4.4 
+# Option 15: Domain Name 
+dhcp-option=15,sdn.local 
+# Option 28: Broadcast Address 
+dhcp-option=28,192.168.200.255 
+# Option 51: IP Address Lease Time (4 horas = 14400 segundos) 
+dhcp-option=51,14400 
+# Option 58: Renewal Time (50% del lease = 2 horas = 7200 segundos) 
+dhcp-option=58,7200 
+# Option 59: Rebinding Time (87.5% del lease = 3.5 horas = 12600 segundos) 
+dhcp-option=59,12600 
+# ===== Logging ===== 
+# Habilitar logs detallados 
+log-dhcp 
+log-queries 
+# ===== Configuración de leases ===== 
+# Archivo de leases 
+dhcp-leasefile=/var/lib/misc/dnsmasq.leases 
+# Modo autoritativo (responde NACK a solicitudes incorrectas) 
+dhcp-authoritative 
+# =================================================== 
+EOF'
+
+3) Validación del archivo de configuración DHCP 
+
+# Ver contenido del archivo 
+cat /etc/dnsmasq.d/dhcp-sdn.conf 
+# Verificar que no haya errores de sintaxis 
+sudo dnsmasq --test 
+# Crear directorio 
+sudo mkdir -p /var/lib/misc/ 
+# Crear archivo de leases vacío 
+sudo touch /var/lib/misc/dnsmasq.leases 
+# Establecer permisos correctos 
+sudo chown dnsmasq:nogroup /var/lib/misc/dnsmasq.leases 
+sudo chmod 644 /var/lib/misc/dnsmasq.leases 
+# systemd-resolved puede interferir con dnsmasq 
+sudo systemctl stop systemd-resolved 2>/dev/null || true 
+sudo systemctl disable systemd-resolved 2>/dev/null || true 
+sudo systemctl start dnsmasq 
+sudo systemctl status dnsmasq 

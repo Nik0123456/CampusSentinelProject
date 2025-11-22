@@ -23,7 +23,7 @@ FLOW_PRIORITY = 200
 
 # RADIUS client
 radius_client = Client(server="127.0.0.1", secret=b"testing123",
-                       dict=Dictionary("/home/ubuntu/Desktop/CampusSentinel/dictionary_simple"))
+                       dict=Dictionary("/home/ubuntu/Desktop/CampusSentinelProject/PythonModules/dictionary_simple"))
 
 # Almacén temporal: IP → información de red del cliente
 pending_clients = {}
