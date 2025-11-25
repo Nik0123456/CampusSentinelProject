@@ -1,0 +1,4 @@
+cd ~/floodlight-1.2/
+ant clean
+ant
+jar -java target/floodlight.jar

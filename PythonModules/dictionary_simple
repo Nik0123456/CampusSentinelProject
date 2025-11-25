@@ -1,5 +1,6 @@
 #
-# Diccionario RADIUS mínimo y 100% compatible con pyrad
+# Diccionario RADIUS que define el formato y estructura 
+# de los mensajes entre los modulos de Python y el servidor FreeRADIUS.
 #
 
 ATTRIBUTE       User-Name                       1       string

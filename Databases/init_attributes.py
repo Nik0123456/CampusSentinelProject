@@ -5,7 +5,7 @@ config = {
     'user': 'campus',
     'password': 'SQLgrupo3?',
     'host': 'localhost',
-    'database': 'mydb'
+    'database': 'DB_Permissions'
 }
 
 conn = mysql.connector.connect(**config)

@@ -1,12 +1,14 @@
-1) Instalar MySQL Server 
+ 1) Instalar MySQL Server 
 
 sudo apt install mysql-server -y
 sudo mysql_secure_installation
 
+En este caso la clave acceso definida para la prueba de concepto ha sido: SQLgrupo3?
+
 2) Crear las bases de datos en MySQL Server
 
 CREATE DATABASE radius;
-CREATE DATABASE mydb;
+CREATE DATABASE DB_Permissions;
 CREATE USER 'campus'@'localhost' IDENTIFIED BY 'SQLgrupo3?';
 GRANT ALL PRIVILEGES ON *.* TO 'campus'@'localhost';
 FLUSH PRIVILEGES;
@@ -43,7 +45,7 @@ read_clients = yes
 
 8) Guardar el archivo de configuración 
 
-9) Configura el cliente Flash (Comunicación local desde los módulos de Python)
+9) Configura el cliente Flask (Comunicación local desde los módulos de Python)
 
 sudo nano /etc/freeradius/3.0/clients.conf
 
@@ -72,3 +74,12 @@ Debe aparecer "Configuration appears to be OK" o "Ready to process requests"
 
 sudo systemctl enable freeradius
 sudo systemctl start freeradius
+
+15) Empleamos el script DB_Permissions.sql para generar el esquema 
+en la base de datos MySQL y crear la rutina de limpieza automática 
+
+16) Inicialice las tablas attribute y attribute value de la base de datos 
+DB_Permissions usando el script init_attributes.py
+
+Para ello puede emplear: "python init_attributes.py" o "python3 init_attributes.py" 
+dependiendo de como ha gestionado sus versiones

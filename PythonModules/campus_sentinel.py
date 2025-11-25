@@ -32,7 +32,7 @@ pending_lock = Lock()
 # DB MySQL
 def get_db():
     return mysql.connector.connect(
-        host="localhost", user="campus", password="SQLgrupo3?", database="mydb"
+        host="localhost", user="campus", password="SQLgrupo3?", database="DB_Permissions"
     )
 
 def cleanup_pending_clients():

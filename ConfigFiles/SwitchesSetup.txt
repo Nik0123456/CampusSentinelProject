@@ -1,0 +1,110 @@
+
+            #Agregar registro ARP para la IP del controller en todos los switches
+
+ip neigh replace 192.168.200.200 lladdr fa:16:3e:2f:0f:1a nud permanent dev $sw
+
+            #Mapeo de puertos troncales y de acceso en cada Switch 
+- SW1:
+2(ens5): addr:fa:16:3e:26:1f:52 troncal
+3(ens6): addr:fa:16:3e:ab:d8:c3 acceso
+4(ens7): addr:fa:16:3e:e5:0e:76 troncal
+
+- SW2:
+1(ens4): addr:fa:16:3e:d8:97:9b acceso
+2(ens5): addr:fa:16:3e:48:57:9e acceso
+3(ens6): addr:fa:16:3e:2d:2f:19 troncal
+4(ens7): addr:fa:16:3e:14:0c:5b troncal
+
+- SW3:
+1(ens4): addr:fa:16:3e:0c:ac:96 troncal
+2(ens5): addr:fa:16:3e:ab:1f:e0 troncal
+3(ens6): addr:fa:16:3e:af:c7:88 acceso
+4(ens7): addr:fa:16:3e:16:a2:4e acceso
+5(ens8): addr:fa:16:3e:b0:f7:d1 acceso
+6(ens9): addr:fa:16:3e:d1:92:5b acceso
+
+- SW4:
+
+1(ens4): addr:fa:16:3e:b2:bc:2d  troncal
+2(ens5): addr:fa:16:3e:ff:28:8a troncal
+3(ens6): addr:fa:16:3e:46:45:33 acceso
+4(ens7): addr:fa:16:3e:fe:6b:7d acceso
+5(ens8): addr:fa:16:3e:54:33:3a acceso
+
+            #Flow entries para todos los switches 
+
+sw=$(hostname)
+sudo ovs-ofctl -O OpenFlow13 del-flows $sw
+
+
+sudo ovs-ofctl -O OpenFlow13 add-flow $sw "priority=400,udp,tp_src=68,tp_dst=67,actions=NORMAL"
+sudo ovs-ofctl add-flow -O OpenFlow13  $sw "priority=400,udp,tp_src=67,tp_dst=68,actions=NORMAL"
+sudo ovs-ofctl -O OpenFlow13 add-flow $sw "priority=400,arp,actions=NORMAL"
+sudo ovs-ofctl -O OpenFlow13 add-flow $sw "priority=400,tcp,nw_dst=10.0.0.2,tp_dst=5000,actions=CONTROLLER"
+sudo ovs-ofctl -O OpenFlow13 add-flow $sw "priority=400,tcp,nw_src=10.0.0.2,tp_src=5000,actions=NORMAL"
+
+
+sudo ovs-ofctl -O OpenFlow13 add-flow $sw "priority=200,ip,nw_src=10.0.0.0/16,nw_dst=10.0.0.0/24,actions=push_vlan:0x8100,set_field:0x1064->vlan_vid,goto_table:1"
+
+
+sudo ovs-ofctl -O OpenFlow13 add-flow $sw "priority=100,dl_dst=fa:16:3e:81:25:9a,actions=NORMAL"
+sudo ovs-ofctl -O OpenFlow13 add-flow $sw "priority=100,dl_src=fa:16:3e:81:25:9a,actions=NORMAL"
+
+
+sudo ovs-ofctl -O OpenFlow13 add-flow $sw "priority=0,actions=drop"
+
+
+sudo ovs-ofctl -O OpenFlow13 add-flow $sw "table=1,priority=0,actions=drop"
+
+
+sudo ovs-ofctl -O OpenFlow13 add-flow $sw "table=2,priority=0,actions=CONTROLLER"
+
+
+sudo ovs-ofctl -O OpenFlow13 add-flow $sw "table=3,priority=0,actions=drop"
+
+
+sudo ovs-ofctl -O OpenFlow13 dump-flows $sw
+
+            # Flow entries solo para SW1
+
+sudo ovs-ofctl -O OpenFlow13 add-flow sw1 "priority=500,in_port=3,vlan_tci=0x1000/0x1000,actions=drop"
+
+sudo ovs-ofctl -O OpenFlow13 add-flow sw1 "priority=300,in_port=2,dl_vlan=100,actions=goto_table:3"
+sudo ovs-ofctl -O OpenFlow13 add-flow sw1 "priority=300,in_port=4,dl_vlan=100,actions=goto_table:3"
+
+sudo ovs-ofctl -O OpenFlow13 dump-flows sw1
+
+            # Flow entries solo para SW2
+
+sudo ovs-ofctl -O OpenFlow13 add-flow sw2 "priority=500,in_port=1,vlan_tci=0x1000/0x1000,actions=drop"
+sudo ovs-ofctl -O OpenFlow13 add-flow sw2 "priority=500,in_port=2,vlan_tci=0x1000/0x1000,actions=drop"
+
+sudo ovs-ofctl -O OpenFlow13 add-flow sw2 "priority=300,in_port=3,dl_vlan=100,actions=goto_table:3"
+sudo ovs-ofctl -O OpenFlow13 add-flow sw2 "priority=300,in_port=4,dl_vlan=100,actions=goto_table:3"
+
+sudo ovs-ofctl -O OpenFlow13 dump-flows sw2
+
+            # Flow entries solo para SW3
+
+sudo ovs-ofctl -O OpenFlow13 add-flow sw3 "priority=500,in_port=3,vlan_tci=0x1000/0x1000,actions=drop"
+sudo ovs-ofctl -O OpenFlow13 add-flow sw3 "priority=500,in_port=4,vlan_tci=0x1000/0x1000,actions=drop"
+sudo ovs-ofctl -O OpenFlow13 add-flow sw3 "priority=500,in_port=5,vlan_tci=0x1000/0x1000,actions=drop"
+sudo ovs-ofctl -O OpenFlow13 add-flow sw3 "priority=500,in_port=6,vlan_tci=0x1000/0x1000,actions=drop"
+
+sudo ovs-ofctl -O OpenFlow13 add-flow sw3 "priority=300,in_port=1,dl_vlan=100,actions=goto_table:3"
+sudo ovs-ofctl -O OpenFlow13 add-flow sw3 "priority=300,in_port=2,dl_vlan=100,actions=goto_table:3"
+
+sudo ovs-ofctl -O OpenFlow13 dump-flows sw3
+
+
+            # Flow entries solo para SW4
+
+sudo ovs-ofctl -O OpenFlow13 add-flow sw4 "priority=500,in_port=3,vlan_tci=0x1000/0x1000,actions=drop"
+sudo ovs-ofctl -O OpenFlow13 add-flow sw4 "priority=500,in_port=4,vlan_tci=0x1000/0x1000,actions=drop"
+sudo ovs-ofctl -O OpenFlow13 add-flow sw4 "priority=500,in_port=5,vlan_tci=0x1000/0x1000,actions=drop"
+
+sudo ovs-ofctl -O OpenFlow13 add-flow sw4 "priority=300,in_port=1,dl_vlan=100,actions=goto_table:3"
+sudo ovs-ofctl -O OpenFlow13 add-flow sw4 "priority=300,in_port=2,dl_vlan=100,actions=goto_table:3"
+
+sudo ovs-ofctl -O OpenFlow13 dump-flows sw4
+
