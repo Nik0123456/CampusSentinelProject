@@ -24,33 +24,11 @@ def delete_session():
     if os.path.exists(SESSION_FILE):
         os.remove(SESSION_FILE)
 
-def get_client_info():
-    """Obtiene la información de red del cliente desde el servidor"""
-    try:
-        print("Obteniendo información de red...")
-        r = requests.get(f"{SERVER}/api/client_info", timeout=5)
-        
-        if r.status_code == 200:
-            data = r.json()
-            if data.get("success"):
-                return data["client"]
-            else:
-                print(f"Error: {data.get('error', 'No se pudo obtener info del cliente')}")
-        else:
-            print(f"Error del servidor: código {r.status_code}")
-            
-    except requests.exceptions.ConnectionError:
-        print("No se pudo conectar al servidor de autenticación.")
-        print("Asegúrate de que el servidor esté ejecutándose en http://10.0.0.2:5000")
-    except requests.exceptions.Timeout:
-        print("Timeout al conectar con el servidor.")
-    except Exception as e:
-        print(f"Error inesperado: {e}")
-    
-    return None
-
-def login_user(client_info):
-    """Autenticación de usuario registrado"""
+def login_user():
+    """Autenticación de usuario registrado
+    NOTA: La información de red (IP, MAC, DPID, Puerto) es obtenida automáticamente
+    por el servidor desde Floodlight cuando el usuario navega.
+    """
     print("\n=== LOGIN DE USUARIO REGISTRADO ===")
     email = input("Email: ").strip().lower()
     
@@ -59,8 +37,7 @@ def login_user(client_info):
     
     payload = {
         "email": email,
-        "password": password,
-        "client": client_info
+        "password": password
     }
     
     try:
@@ -76,18 +53,22 @@ def login_user(client_info):
             print(f"\n✓ Autenticación exitosa!")
             print(f"  Usuario: {result.get('user', email)}")
             print(f"  Acceso válido por {result['expires_in'] // 3600} horas")
-            print(f"  VLAN 100 asignada automáticamente")
+            print(f"  Flow de autenticación instalado en el switch")
             return True
         else:
             print(f"\n✗ Error: {result.get('error', 'Credenciales inválidas')}")
+            if 'No se encontró información de red' in result.get('error', ''):
+                print("\n  Asegúrate de haber navegado a http://10.0.0.2:5000 primero")
             
     except Exception as e:
         print(f"Error durante el login: {e}")
     
     return False
 
-def guest_access(client_info):
-    """Acceso de invitado"""
+def guest_access():
+    """Acceso de invitado
+    NOTA: La información de red es obtenida automáticamente por el servidor
+    """
     print("\n=== ACCESO DE INVITADO ===")
     email = input("Email: ").strip().lower()
     
@@ -96,8 +77,7 @@ def guest_access(client_info):
         return False
     
     payload = {
-        "email": email,
-        "client": client_info
+        "email": email
     }
     
     try:
@@ -113,10 +93,12 @@ def guest_access(client_info):
             print(f"\n✓ Acceso de invitado concedido!")
             print(f"  Email: {email}")
             print(f"  Acceso válido por {result['expires_in'] // 3600} horas")
-            print(f"  VLAN 100 asignada automáticamente")
+            print(f"  Flow de autenticación instalado en el switch")
             return True
         else:
             print(f"\n✗ Error: {result.get('error', 'No se pudo registrar')}")
+            if 'No se encontró información de red' in result.get('error', ''):
+                print("\n  Asegúrate de haber navegado a http://10.0.0.2:5000 primero")
             
     except Exception as e:
         print(f"Error durante el registro: {e}")
@@ -182,37 +164,20 @@ def main():
             print("\n⚠ Sesión expirada")
             delete_session()
     
-    # Obtener información del cliente
-    print("\nPara autenticarte, primero necesitamos tu información de red.")
-    print("Esto ocurre automáticamente cuando intentas navegar.")
-    
-    client_info = get_client_info()
-    
-    if not client_info:
-        print("\n⚠ No se pudo obtener tu información de red.")
-        print("\nPasos para solucionar:")
-        print("  1. Intenta navegar a cualquier sitio web (ej: google.com)")
-        print("  2. Espera unos segundos")
-        print("  3. Ejecuta este programa nuevamente")
-        return
-    
-    # Mostrar información del cliente
-    print(f"\n✓ Cliente detectado:")
-    print(f"  IP: {client_info['ip']}")
-    print(f"  MAC: {client_info['mac']}")
-    print(f"  Switch: {client_info['dpid']}")
-    print(f"  Puerto: {client_info['port']}")
+    # Información importante para el usuario
+    print("\n" + "-"*60)
+    print("IMPORTANTE: Asegúrate de haber navegado a http://10.0.0.2:5000")
+    print("antes de autenticarte. Esto permite que el sistema detecte tu red.")
+    print("-"*60)
     
     # Menú de autenticación
-    print("\n" + "-"*60)
-    print("Opciones de autenticación:")
-    print("-"*60)
+    print("\nOpciones de autenticación:")
     tipo = input("\n1. Usuario registrado (autenticación RADIUS)\n2. Acceso invitado\n\nElige (1/2): ").strip()
     
     if tipo == "1":
-        login_user(client_info)
+        login_user()
     elif tipo == "2":
-        guest_access(client_info)
+        guest_access()
     else:
         print("Opción inválida")
 

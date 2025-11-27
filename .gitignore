@@ -39,3 +39,7 @@ build/
 # Sistema
 Thumbs.db
 .DS_Store
+
+#Contexto de LLM (archivos de texto + markdown)
+PipelineFlowsFormat.txt
+*.md

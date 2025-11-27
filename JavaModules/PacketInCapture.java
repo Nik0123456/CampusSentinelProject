@@ -18,6 +18,8 @@ import net.floodlightcontroller.core.module.IFloodlightModule;
 import net.floodlightcontroller.core.module.IFloodlightService;
 import net.floodlightcontroller.packet.Ethernet;
 import net.floodlightcontroller.packet.IPv4;
+import net.floodlightcontroller.packet.TCP;
+import net.floodlightcontroller.packet.UDP;
 
 import org.projectfloodlight.openflow.protocol.OFMessage;
 import org.projectfloodlight.openflow.protocol.OFPacketIn;
@@ -83,9 +85,17 @@ public class PacketInCapture implements IFloodlightModule, IOFMessageListener {
         }
 
         IPv4 ipv4 = (IPv4) eth.getPayload();
-
-        // Solo interceptar paquetes destinados al portal cautivo (10.0.0.2)
-        if (!ipv4.getDestinationAddress().equals(IPv4Address.of("10.0.0.2"))) {
+        IPv4Address dstIp = ipv4.getDestinationAddress();
+        
+        // Interceptar paquetes destinados a:
+        // - Portal cautivo (10.0.0.2) → AUTENTICACIÓN (Tabla 0)
+        // - Servidores (10.0.0.21, 10.0.0.22, 10.0.0.23) → AUTORIZACIÓN (Tabla 2)
+        boolean isAuthPacket = dstIp.equals(IPv4Address.of("10.0.0.2"));
+        boolean isAuthzPacket = dstIp.equals(IPv4Address.of("10.0.0.21")) ||
+                                dstIp.equals(IPv4Address.of("10.0.0.22")) ||
+                                dstIp.equals(IPv4Address.of("10.0.0.23"));
+        
+        if (!isAuthPacket && !isAuthzPacket) {
             return Command.CONTINUE;
         }
 
@@ -98,16 +108,43 @@ public class PacketInCapture implements IFloodlightModule, IOFMessageListener {
         final String srcIpStr = srcIp.toString();
         final String dpidStr = dpid.toString();
         final int inPortNum = inPort.getPortNumber();
+        
+        // Extraer información adicional para AUTORIZACIÓN
+        final String dstIpStr = dstIp.toString();
+        String protocol = null;
+        int dstPort = 0;
+        
+        if (ipv4.getPayload() instanceof TCP) {
+            TCP tcp = (TCP) ipv4.getPayload();
+            protocol = "TCP";
+            dstPort = tcp.getDestinationPort().getPort();
+        } else if (ipv4.getPayload() instanceof UDP) {
+            UDP udp = (UDP) ipv4.getPayload();
+            protocol = "UDP";
+            dstPort = udp.getDestinationPort().getPort();
+        }
+        
+        final String finalProtocol = protocol;
+        final int finalDstPort = dstPort;
 
         // Enviar datos a Flask en thread separado
         new Thread(new Runnable() {
             public void run() {
-                sendToFlask(srcMacStr, srcIpStr, dpidStr, inPortNum);
+                if (isAuthzPacket && finalProtocol != null) {
+                    // PACKET_IN de AUTORIZACIÓN (Tabla 2)
+                    sendToFlaskAuthz(srcMacStr, srcIpStr, dpidStr, inPortNum, 
+                                     dstIpStr, finalDstPort, finalProtocol);
+                } else {
+                    // PACKET_IN de AUTENTICACIÓN (Tabla 0)
+                    sendToFlaskAuth(srcMacStr, srcIpStr, dpidStr, inPortNum);
+                }
             }
         }).start();
 
-        logger.info("Packet-In capturado: IP=" + srcIpStr + ", MAC=" + srcMacStr +
-                ", DPID=" + dpidStr + ", Puerto=" + inPortNum);
+        String packetType = isAuthzPacket ? "AUTHZ" : "AUTH";
+        logger.info("[" + packetType + "] Packet-In capturado: IP=" + srcIpStr + 
+                ", MAC=" + srcMacStr + ", DPID=" + dpidStr + ", Puerto=" + inPortNum +
+                (isAuthzPacket ? ", Destino=" + dstIpStr + ":" + finalDstPort : ""));
 
         // Reenviar el paquete a ambos switches core
         final byte[] packetData = eth.serialize();
@@ -173,7 +210,10 @@ public class PacketInCapture implements IFloodlightModule, IOFMessageListener {
         }
     }
 
-    private void sendToFlask(String mac, String ip, String dpid, int port) {
+    /**
+     * Enviar PACKET_IN de AUTENTICACIÓN (Tabla 0) a Flask
+     */
+    private void sendToFlaskAuth(String mac, String ip, String dpid, int port) {
         try {
             URL url = new URL("http://127.0.0.1:5000/packetin");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -194,14 +234,52 @@ public class PacketInCapture implements IFloodlightModule, IOFMessageListener {
 
             int responseCode = conn.getResponseCode();
             if (responseCode == 200) {
-                logger.info("Datos enviados a Flask correctamente: " + ip);
+                logger.info("[AUTH] Datos enviados a Flask: " + ip);
             } else {
-                logger.warn("Flask respondió con código " + responseCode);
+                logger.warn("[AUTH] Flask respondió con código " + responseCode);
             }
             conn.disconnect();
 
         } catch (Exception e) {
-            logger.error("Error enviando a Flask: " + e.getMessage());
+            logger.error("[AUTH] Error enviando a Flask: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Enviar PACKET_IN de AUTORIZACIÓN (Tabla 2) a Flask
+     * Incluye información del destino (servicio solicitado)
+     */
+    private void sendToFlaskAuthz(String mac, String ip, String dpid, int port, 
+                                   String dstIp, int dstPort, String protocol) {
+        try {
+            URL url = new URL("http://127.0.0.1:5000/packetin");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setDoOutput(true);
+            conn.setConnectTimeout(2000);
+            conn.setReadTimeout(2000);
+
+            String json = String.format(
+                    "{\"mac\":\"%s\",\"ip\":\"%s\",\"dpid\":\"%s\",\"in_port\":%d," +
+                    "\"dst_ip\":\"%s\",\"dst_port\":%d,\"protocol\":\"%s\"}",
+                    mac, ip, dpid, port, dstIp, dstPort, protocol
+            );
+
+            OutputStream os = conn.getOutputStream();
+            os.write(json.getBytes("UTF-8"));
+            os.close();
+
+            int responseCode = conn.getResponseCode();
+            if (responseCode == 200) {
+                logger.info("[AUTHZ] Permiso procesado: " + ip + " → " + dstIp + ":" + dstPort);
+            } else {
+                logger.warn("[AUTHZ] Flask respondió con código " + responseCode);
+            }
+            conn.disconnect();
+
+        } catch (Exception e) {
+            logger.error("[AUTHZ] Error enviando a Flask: " + e.getMessage());
         }
     }
 
@@ -236,10 +314,13 @@ public class PacketInCapture implements IFloodlightModule, IOFMessageListener {
     public void startUp(FloodlightModuleContext context) {
         floodlightProvider.addOFMessageListener(OFType.PACKET_IN, this);
         logger.info("========================================");
-        logger.info(" MODULO SDN AUTH CAPTURE v3.0 CARGADO");
-        logger.info(" Enviando a AMBOS switches core");
-        logger.info(" Core 1: " + CORE_SWITCH_1_DPID + " puerto " + CORE_SWITCH_1_PORT);
-        logger.info(" Core 2: " + CORE_SWITCH_2_DPID + " puerto " + CORE_SWITCH_2_PORT);
+        logger.info(" MODULO SDN AUTH+AUTHZ CAPTURE v4.0 CARGADO");
+        logger.info(" Captura PACKET_INs de:");
+        logger.info("   • AUTENTICACIÓN (Tabla 0): dst=10.0.0.2");
+        logger.info("   • AUTORIZACIÓN (Tabla 2): dst=10.0.0.21/22/23");
+        logger.info(" Enviando a AMBOS switches core:");
+        logger.info("   • Core 1: " + CORE_SWITCH_1_DPID + " puerto " + CORE_SWITCH_1_PORT);
+        logger.info("   • Core 2: " + CORE_SWITCH_2_DPID + " puerto " + CORE_SWITCH_2_PORT);
         logger.info("========================================");
     }
 }
