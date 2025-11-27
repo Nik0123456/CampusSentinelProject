@@ -114,17 +114,17 @@ def cleanup_expired_sessions():
                     
                     if user['is_guest']:
                         # Invitado: eliminar completamente
-                        cur.execute("DELETE FROM User_has_AttributeValue WHERE user_id=%s", (user['id'],))
-                        cur.execute("DELETE FROM User_Permission_Usage WHERE user_id=%s", (user['id'],))
-                        cur.execute("DELETE FROM User WHERE id=%s", (user['id'],))
+                        cur.execute("DELETE FROM User_has_AttributeValue WHERE user_id=%s", (user['idUser'],))
+                        cur.execute("DELETE FROM User_Permission_Usage WHERE user_id=%s", (user['idUser'],))
+                        cur.execute("DELETE FROM User WHERE idUser=%s", (user['idUser'],))
                         logging.info(f"  ✓ Invitado eliminado: {user['username']}")
                     else:
                         # Usuario regular: desactivar sesión
                         cur.execute("""
                             UPDATE User 
                             SET session_active=0, session_token=NULL, flow_name=NULL
-                            WHERE id=%s
-                        """, (user['id'],))
+                            WHERE idUser=%s
+                        """, (user['idUser'],))
                         logging.info(f"  ✓ Sesión desactivada: {user['username']}")
                 
                 conn.commit()
@@ -610,7 +610,7 @@ def packetin():
     conn = get_db()
     cur = conn.cursor(dictionary=True)
     cur.execute("""
-        SELECT id, username, session_expiry, flow_name FROM User 
+        SELECT idUser, username, session_expiry, flow_name FROM User 
         WHERE current_mac=%s AND current_ip=%s AND session_active=1
     """, (mac, ip))
     user = cur.fetchone()
@@ -637,7 +637,7 @@ def packetin():
               AND p.serviceIP = %s 
               AND p.servicePort = %s
               AND p.serviceProtocol = %s
-        """, (user['id'], dst_ip, dst_port, protocol.upper() if protocol else 'TCP'))
+        """, (user['idUser'], dst_ip, dst_port, protocol.upper() if protocol else 'TCP'))
         
         permission = cur.fetchone()
         cur.close()
@@ -658,7 +658,7 @@ def packetin():
         
         if flows:
             # Actualizar estadísticas de uso
-            update_permission_usage(user['id'], permission['id'])
+            update_permission_usage(user['idUser'], permission['id'])
             log_event('PERMISSION_GRANTED', user['username'], ip, mac, dpid, port,
                      extra=f"servicio={permission['serviceName']} flows={len(flows)}")
             
@@ -762,7 +762,7 @@ def login():
               client['port'], flow_name))
 
     # Obtener user_id para carga proactiva
-    cur.execute("SELECT id FROM User WHERE username=%s", (email,))
+    cur.execute("SELECT idUser FROM User WHERE username=%s", (email,))
     user_record = cur.fetchone()
     user_id = user_record[0] if user_record else None
     
@@ -834,7 +834,7 @@ def guest():
           client['port'], flow_name))
     
     # Obtener user_id para carga proactiva (invitados también pueden tener permisos previos si se reregistran)
-    cur.execute("SELECT id FROM User WHERE username=%s", (email,))
+    cur.execute("SELECT idUser FROM User WHERE username=%s", (email,))
     user_record = cur.fetchone()
     user_id = user_record[0] if user_record else None
     
@@ -893,8 +893,9 @@ def logout():
         
         if row['is_guest']:
             # Usuario invitado: eliminar completamente
-            user_id = cur.execute("SELECT idUser FROM User WHERE session_token=%s", (token,))
-            user_id = cur.fetchone()['idUser'] if cur.rowcount else None
+            cur.execute("SELECT idUser FROM User WHERE session_token=%s", (token,))
+            user_result = cur.fetchone()
+            user_id = user_result['idUser'] if user_result else None
             
             if user_id:
                 # Eliminar relaciones primero
