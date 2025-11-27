@@ -21,10 +21,9 @@ def list_users():
     cur = conn.cursor(dictionary=True)
     
     cur.execute("""
-        SELECT idUser, username, is_guest, session_active,
-               DATE_FORMAT(created_at, '%Y-%m-%d %H:%i') as created
+        SELECT idUser, username, is_guest, session_active
         FROM User
-        ORDER BY created_at DESC
+        ORDER BY idUser DESC
     """)
     
     users = cur.fetchall()
@@ -223,19 +222,18 @@ def main():
         print("❌ No hay usuarios registrados")
         exit(1)
     
-    print("\n{:<6} {:<35} {:<12} {:<10} {:<20}".format(
-        "ID", "Email", "Tipo", "Sesión", "Fecha Creación"))
+    print("\n{:<6} {:<40} {:<12} {:<10}".format(
+        "ID", "Email", "Tipo", "Sesión"))
     print("-" * 80)
     
     for user in users:
         tipo = "Invitado" if user['is_guest'] else "Regular"
         sesion = "Activa" if user['session_active'] else "Inactiva"
-        print("{:<6} {:<35} {:<12} {:<10} {:<20}".format(
+        print("{:<6} {:<40} {:<12} {:<10}".format(
             user['idUser'],
-            user['username'][:34],
+            user['username'][:39],
             tipo,
-            sesion,
-            user['created']
+            sesion
         ))
     
     # 2. Seleccionar usuario
