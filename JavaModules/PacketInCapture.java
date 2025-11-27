@@ -90,10 +90,10 @@ public class PacketInCapture implements IFloodlightModule, IOFMessageListener {
         // Interceptar paquetes destinados a:
         // - Portal cautivo (10.0.0.2) → AUTENTICACIÓN (Tabla 0)
         // - Servidores (10.0.0.21, 10.0.0.22, 10.0.0.23) → AUTORIZACIÓN (Tabla 2)
-        boolean isAuthPacket = dstIp.equals(IPv4Address.of("10.0.0.2"));
-        boolean isAuthzPacket = dstIp.equals(IPv4Address.of("10.0.0.21")) ||
-                                dstIp.equals(IPv4Address.of("10.0.0.22")) ||
-                                dstIp.equals(IPv4Address.of("10.0.0.23"));
+        final boolean isAuthPacket = dstIp.equals(IPv4Address.of("10.0.0.2"));
+        final boolean isAuthzPacket = dstIp.equals(IPv4Address.of("10.0.0.21")) ||
+                                      dstIp.equals(IPv4Address.of("10.0.0.22")) ||
+                                      dstIp.equals(IPv4Address.of("10.0.0.23"));
         
         if (!isAuthPacket && !isAuthzPacket) {
             return Command.CONTINUE;
