@@ -111,35 +111,45 @@ public class PacketInCapture implements IFloodlightModule, IOFMessageListener {
         
         // Extraer información adicional para AUTORIZACIÓN
         final String dstIpStr = dstIp.toString();
-        String protocol = null;
-        int dstPort = 0;
-        
-        if (ipv4.getPayload() instanceof TCP) {
-            TCP tcp = (TCP) ipv4.getPayload();
-            protocol = "TCP";
-            dstPort = tcp.getDestinationPort().getPort();
-        } else if (ipv4.getPayload() instanceof UDP) {
-            UDP udp = (UDP) ipv4.getPayload();
-            protocol = "UDP";
-            dstPort = udp.getDestinationPort().getPort();
-        }
-        
-        final String finalProtocol = protocol;
-        final int finalDstPort = dstPort;
+	String protocol = null;
+	int dstPort = 0;
 
-        // Enviar datos a Flask en thread separado
-        new Thread(new Runnable() {
-            public void run() {
-                if (isAuthzPacket && finalProtocol != null) {
-                    // PACKET_IN de AUTORIZACIÓN (Tabla 2)
-                    sendToFlaskAuthz(srcMacStr, srcIpStr, dpidStr, inPortNum, 
-                                     dstIpStr, finalDstPort, finalProtocol);
-                } else {
-                    // PACKET_IN de AUTENTICACIÓN (Tabla 0)
-                    sendToFlaskAuth(srcMacStr, srcIpStr, dpidStr, inPortNum);
-                }
-            }
-        }).start();
+	// Deserializar payload si existe
+if (ipv4.getPayload() != null) {
+    if (ipv4.getPayload() instanceof TCP) {
+        TCP tcp = (TCP) ipv4.getPayload();
+        protocol = "TCP";
+        dstPort = tcp.getDestinationPort().getPort();
+    } else if (ipv4.getPayload() instanceof UDP) {
+        UDP udp = (UDP) ipv4.getPayload();
+        protocol = "UDP";
+        dstPort = udp.getDestinationPort().getPort();
+    } else {
+        // Log para debugging
+        logger.warn("[AUTHZ] Protocolo no soportado: " + ipv4.getProtocol() + 
+                   " desde " + srcIpStr + " hacia " + dstIpStr);
+        protocol = "OTHER";
+    }
+} else {
+    logger.warn("[AUTHZ] Payload IPv4 nulo para paquete desde " + srcIpStr);
+}
+
+final String finalProtocol = protocol;
+final int finalDstPort = dstPort;
+
+// Enviar datos a Flask - SIEMPRE enviar authz si es paquete authz
+new Thread(new Runnable() {
+    public void run() {
+        if (isAuthzPacket) {
+            // Enviar incluso si protocol es null/OTHER
+            sendToFlaskAuthz(srcMacStr, srcIpStr, dpidStr, inPortNum, 
+                            dstIpStr, finalDstPort, 
+                            finalProtocol != null ? finalProtocol : "UNKNOWN");
+        } else {
+            sendToFlaskAuth(srcMacStr, srcIpStr, dpidStr, inPortNum);
+        }
+    }
+}).start();
 
         String packetType = isAuthzPacket ? "AUTHZ" : "AUTH";
         logger.info("[" + packetType + "] Packet-In capturado: IP=" + srcIpStr + 
