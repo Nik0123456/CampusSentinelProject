@@ -163,24 +163,30 @@ class FloodlightClient:
     # RUTEO
     # ========================================
     
-    def get_route(self, src_dpid, src_port, dst_dpid, dst_port):
-        """Obtiene ruta entre dos puntos usando la API de Floodlight
+    def get_route_direct(self, src_dpid, src_port, dst_dpid, dst_port):
+        """Obtiene ruta entre dos puntos usando directamente la API de topología de Floodlight
+        
+        NO usa get_attachment_points, asume que los DPIDs y puertos vienen de la BD.
+        API: /wm/topology/route/<src-dpid>/<src-port>/<dst-dpid>/<dst-port>/json
         
         Args:
-            src_dpid: DPID del switch origen
-            src_port: Puerto origen
-            dst_dpid: DPID del switch destino
-            dst_port: Puerto destino
+            src_dpid: DPID del switch origen (formato: 00:00:xx:xx:xx:xx:xx:xx)
+            src_port: Puerto origen (int)
+            dst_dpid: DPID del switch destino (formato: 00:00:xx:xx:xx:xx:xx:xx)
+            dst_port: Puerto destino (int)
             
         Returns:
             Lista de dicts con 'switch' y 'port' representando la ruta
         """
         if not (src_dpid and dst_dpid):
+            logging.error("get_route_direct: DPID origen o destino faltante")
             return []
         
+        # Llamar API directamente
         raw = self._get(f"/wm/topology/route/{src_dpid}/{src_port}/{dst_dpid}/{dst_port}/json")
         
         if not isinstance(raw, list):
+            logging.warning(f"get_route_direct: Respuesta inválida de Floodlight")
             return []
         
         route = []
@@ -195,7 +201,16 @@ class FloodlightClient:
                     if not route or route[-1] != {"switch": sw, "port": port}:
                         route.append({"switch": sw, "port": port})
         
+        logging.debug(f"get_route_direct: Ruta obtenida con {len(route)} hops")
         return route
+    
+    def get_route(self, src_dpid, src_port, dst_dpid, dst_port):
+        """DEPRECATED: Usar get_route_direct() en su lugar
+        
+        Obtiene ruta entre dos puntos usando la API de Floodlight
+        Mantener por compatibilidad con código antiguo
+        """
+        return self.get_route_direct(src_dpid, src_port, dst_dpid, dst_port)
 
     def build_route(self, route):
         """Construye hops de switch con in_port y out_port desde una ruta

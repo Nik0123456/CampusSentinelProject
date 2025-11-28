@@ -338,7 +338,7 @@ def get_top_used_permissions(user_id, limit=10):
         cur = conn.cursor(dictionary=True)
         
         cur.execute("""
-            SELECT p.id, p.serviceName, p.serviceIP, p.serviceMAC,
+            SELECT p.id, p.serviceName, p.serviceIP, p.serviceMAC, p.serviceDPID, p.serviceInPort,
                    p.serviceProtocol, p.servicePort, upu.usage_count
             FROM User_Permission_Usage upu
             JOIN Permission p ON upu.permission_id = p.id
@@ -368,7 +368,7 @@ def install_permission_flows(user_ip, user_dpid, user_port, permission, flow_pre
         user_ip: IP del usuario
         user_dpid: DPID del switch del usuario
         user_port: Puerto del switch del usuario
-        permission: Dict con datos del permiso (serviceIP, servicePort, serviceProtocol, etc.)
+        permission: Dict con datos del permiso (serviceIP, servicePort, serviceProtocol, serviceDPID, serviceInPort, serviceMAC)
         flow_prefix: Prefijo para el nombre del flow
         
     Returns:
@@ -380,21 +380,20 @@ def install_permission_flows(user_ip, user_dpid, user_port, permission, flow_pre
         protocol = permission['serviceProtocol'].upper()
         service_name = permission['serviceName'].replace(' ', '_')
         
+        # Obtener datos del servicio desde la BD (ya no se usa get_attachment_points)
+        service_dpid = permission.get('serviceDPID')
+        service_port_hw = permission.get('serviceInPort')
+        service_mac = permission.get('serviceMAC', '00:00:00:00:00:00')
+        
+        if not service_dpid or service_port_hw is None:
+            logging.error(f"Servicio {service_name} sin DPID/InPort en BD")
+            return []
+        
         # Determinar protocolo IP
         ip_proto = 6 if protocol == 'TCP' else (17 if protocol == 'UDP' else None)
         if ip_proto is None:
             logging.warning(f"Protocolo desconocido: {protocol}")
             return []
-        
-        # Obtener puntos de conexión del servicio
-        service_ap = floodlight.get_attachment_points_by_ip(service_ip, first_only=True)
-        if not service_ap:
-            logging.warning(f"No se encontró attachment point para servicio {service_ip}")
-            return []
-        
-        service_dpid = service_ap['DPID']
-        service_port_hw = service_ap['port']
-        service_mac = permission.get('serviceMAC', '00:00:00:00:00:00')
         
         # Instalar flow de autenticación GRANULAR del servicio en Tabla 1 (anti-spoofing)
         # Valida que solo tráfico de SERVICIOS AUTORIZADOS (IP+Puerto+Protocolo) pueda salir
@@ -402,8 +401,14 @@ def install_permission_flows(user_ip, user_dpid, user_port, permission, flow_pre
                                                      service_ip, service_mac, 
                                                      service_port, protocol)
         
-        # Obtener ruta entre usuario y servicio
-        route = floodlight.get_route(user_dpid, user_port, service_dpid, service_port_hw)
+        # Obtener ruta usando API de Floodlight directamente
+        # API: /wm/topology/route/<src-dpid>/<src-port>/<dst-dpid>/<dst-port>/json
+        route = floodlight.get_route_direct(user_dpid, user_port, service_dpid, service_port_hw)
+        
+        if not route:
+            logging.warning(f"No se pudo obtener ruta entre {user_dpid}:{user_port} y {service_dpid}:{service_port_hw}")
+            return []
+        
         hops = floodlight.build_route(route)
         
         if not hops:
@@ -630,14 +635,15 @@ def packetin():
         
         # Verificar si el usuario tiene permiso para el servicio solicitado
         cur.execute("""
-            SELECT p.id, p.serviceName, p.serviceIP, p.serviceMAC, p.serviceProtocol, p.servicePort
+            SELECT p.id, p.serviceName, p.serviceIP, p.serviceMAC, p.serviceDPID, p.serviceInPort,
+                   p.serviceProtocol, p.servicePort
             FROM Permission p
             JOIN User_has_AttributeValue uav ON p.attributevalue_id = uav.attributevalue_id
             WHERE uav.user_id = %s 
               AND p.serviceIP = %s 
               AND p.servicePort = %s
               AND p.serviceProtocol = %s
-        """, (user['idUser'], dst_ip, dst_port, protocol.upper() if protocol else 'TCP'))
+        """, (user['idUser'], dst_ip, str(dst_port), protocol.upper()))
         
         permission = cur.fetchone()
         cur.close()

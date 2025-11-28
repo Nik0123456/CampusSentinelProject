@@ -65,6 +65,8 @@ CREATE TABLE `Permission` (
   `serviceName` VARCHAR(100) NOT NULL,
   `serviceIP` VARCHAR(45) NOT NULL,
   `serviceMAC` VARCHAR(45) NULL,
+  `serviceDPID` VARCHAR(23) NULL,
+  `serviceInPort` INT NULL,
   `serviceProtocol` VARCHAR(10) NOT NULL,
   `servicePort` VARCHAR(10) NOT NULL,
   `attributevalue_id` INT NOT NULL,
