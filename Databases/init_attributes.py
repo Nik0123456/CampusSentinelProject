@@ -98,7 +98,7 @@ servicios_generales = [
     {
         'name': 'Biblioteca General PUCP',
         'ip': '10.0.0.22',
-        'mac': '00:00:00:00:00:22',  # Placeholder, se obtiene dinámicamente
+        'mac': 'fa:16:3e:60:4c:fa',
         'protocol': 'TCP',
         'port': '80',  # HTTP
         'attr_value': 'Estudiante'
@@ -106,7 +106,7 @@ servicios_generales = [
     {
         'name': 'Servidor DNS PUCP',
         'ip': '10.0.0.22',
-        'mac': '00:00:00:00:00:22',
+        'mac': 'fa:16:3e:60:4c:fa',
         'protocol': 'UDP',
         'port': '53',
         'attr_value': 'Estudiante'
@@ -114,7 +114,7 @@ servicios_generales = [
     {
         'name': 'Portal Web Estudiantes',
         'ip': '10.0.0.22',
-        'mac': '00:00:00:00:00:22',
+        'mac': 'fa:16:3e:60:4c:fa',
         'protocol': 'TCP',
         'port': '8080',
         'attr_value': 'Estudiante'
@@ -126,7 +126,7 @@ servicios_sdn = [
     {
         'name': 'Servidor FTP SDN',
         'ip': '10.0.0.21',
-        'mac': '00:00:00:00:00:21',
+        'mac': 'fa:16:3e:01:d2:e7',
         'protocol': 'TCP',
         'port': '21',
         'attr_value': 'Redes Definidas por Software'
@@ -134,7 +134,7 @@ servicios_sdn = [
     {
         'name': 'Laboratorio SDN Web',
         'ip': '10.0.0.21',
-        'mac': '00:00:00:00:00:21',
+        'mac': 'fa:16:3e:01:d2:e7',
         'protocol': 'TCP',
         'port': '8081',
         'attr_value': 'Redes Definidas por Software'
@@ -142,7 +142,7 @@ servicios_sdn = [
     {
         'name': 'Network File System SDN',
         'ip': '10.0.0.21',
-        'mac': '00:00:00:00:00:21',
+        'mac': 'fa:16:3e:01:d2:e7',
         'protocol': 'TCP',
         'port': '2049',
         'attr_value': 'Redes Definidas por Software'
@@ -150,7 +150,7 @@ servicios_sdn = [
     {
         'name': 'API REST Floodlight SDN',
         'ip': '10.0.0.21',
-        'mac': '00:00:00:00:00:21',
+        'mac': 'fa:16:3e:01:d2:e7',
         'protocol': 'TCP',
         'port': '8080',
         'attr_value': 'Redes Definidas por Software'
@@ -162,7 +162,7 @@ servicios_wireless = [
     {
         'name': 'Servidor de Simulación Wireless',
         'ip': '10.0.0.23',
-        'mac': '00:00:00:00:00:23',
+        'mac': 'fa:16:3e:f0:2f:9a',
         'protocol': 'TCP',
         'port': '8082',
         'attr_value': 'Ingeniería Inalámbrica'
@@ -170,7 +170,7 @@ servicios_wireless = [
     {
         'name': 'Base de Datos Espectro',
         'ip': '10.0.0.23',
-        'mac': '00:00:00:00:00:23',
+        'mac': 'fa:16:3e:f0:2f:9a',
         'protocol': 'TCP',
         'port': '3306',
         'attr_value': 'Ingeniería Inalámbrica'
@@ -178,7 +178,7 @@ servicios_wireless = [
     {
         'name': 'Servidor SSH Wireless Lab',
         'ip': '10.0.0.23',
-        'mac': '00:00:00:00:00:23',
+        'mac': 'fa:16:3e:f0:2f:9a',
         'protocol': 'TCP',
         'port': '22',
         'attr_value': 'Ingeniería Inalámbrica'
@@ -190,7 +190,7 @@ servicios_rf = [
     {
         'name': 'Servidor de Simulación RF',
         'ip': '10.0.0.21',
-        'mac': '00:00:00:00:00:21',
+        'mac': 'fa:16:3e:01:d2:e7',
         'protocol': 'TCP',
         'port': '8083',
         'attr_value': 'Circuitos y Sistemas de Alta Frecuencia'
@@ -198,7 +198,7 @@ servicios_rf = [
     {
         'name': 'Laboratorio Virtual RF',
         'ip': '10.0.0.21',
-        'mac': '00:00:00:00:00:21',
+        'mac': 'fa:16:3e:01:d2:e7',
         'protocol': 'TCP',
         'port': '8084',
         'attr_value': 'Circuitos y Sistemas de Alta Frecuencia'
@@ -210,7 +210,7 @@ servicios_dsp = [
     {
         'name': 'Servidor MATLAB Online',
         'ip': '10.0.0.23',
-        'mac': '00:00:00:00:00:23',
+        'mac': 'fa:16:3e:f0:2f:9a',
         'protocol': 'TCP',
         'port': '8085',
         'attr_value': 'Procesamiento Digital de Señales'
@@ -218,7 +218,7 @@ servicios_dsp = [
     {
         'name': 'Repositorio de Datasets DSP',
         'ip': '10.0.0.23',
-        'mac': '00:00:00:00:00:23',
+        'mac': 'fa:16:3e:f0:2f:9a',
         'protocol': 'TCP',
         'port': '9000',
         'attr_value': 'Procesamiento Digital de Señales'
@@ -230,7 +230,7 @@ servicios_admin = [
     {
         'name': 'Portal Docente',
         'ip': '10.0.0.22',
-        'mac': '00:00:00:00:00:22',
+        'mac': 'fa:16:3e:60:4c:fa',
         'protocol': 'TCP',
         'port': '8443',
         'attr_value': 'Profesor'
@@ -238,7 +238,7 @@ servicios_admin = [
     {
         'name': 'Sistema de Gestión Académica',
         'ip': '10.0.0.22',
-        'mac': '00:00:00:00:00:22',
+        'mac': 'fa:16:3e:60:4c:fa',
         'protocol': 'TCP',
         'port': '8090',
         'attr_value': 'Administrativo'
@@ -246,7 +246,7 @@ servicios_admin = [
     {
         'name': 'SSH Admin Server',
         'ip': '10.0.0.22',
-        'mac': '00:00:00:00:00:22',
+        'mac': 'fa:16:3e:60:4c:fa',
         'protocol': 'TCP',
         'port': '22',
         'attr_value': 'Administrativo'
