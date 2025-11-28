@@ -12,7 +12,7 @@ MYDB = {
     'user': 'campus',
     'password': 'SQLgrupo3?',
     'host': 'localhost',
-    'database': 'mydb'
+    'database': 'DB_Permissions'
 }
 
 email = input("Email del usuario a eliminar: ").strip().lower()

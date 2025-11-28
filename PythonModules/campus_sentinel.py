@@ -152,7 +152,7 @@ def install_auth_flow(dpid, in_port, src_ip, src_mac):
         "eth_src": src_mac,
         "table": 1,
         "hard_timeout": SESSION_HOURS * 3600,
-        "actions": "goto_table:2"  # Pasar a Table 2 (Permisos)
+        "instruction_goto_table": "2"  # Pasar a Table 2 (Permisos)
     }
     try:
         r = requests.post(FLOODLIGHT_URL, json=flow, timeout=5)
@@ -200,7 +200,7 @@ def install_server_auth_flow(service_dpid, service_port_hw, service_ip, service_
         "eth_src": service_mac,       # Match: MAC del servidor
         "table": "1",
         "idle_timeout": str(SESSION_HOURS * 3600),
-        "actions": "goto_table:3"     # → Tabla 3 (Forwarding)
+        "instruction_goto_table": "3"     # → Tabla 3 (Forwarding)
     }
     
     # Agregar match de puerto origen según protocolo
@@ -884,6 +884,7 @@ def logout():
 
     if row:
         # Eliminar TODOS los flows del usuario (Tabla 1, 2 y 3)
+        delete_flow(row['flow_name'], dpid=row['current_dpid'])
         deleted_count = delete_user_flows(row['current_ip'], row['username'])
         
         # Registrar evento en log
