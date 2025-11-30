@@ -42,7 +42,7 @@ sudo ovs-ofctl add-flow -O OpenFlow13  $sw "priority=400,udp,tp_src=67,tp_dst=68
 sudo ovs-ofctl -O OpenFlow13 add-flow $sw "priority=400,arp,actions=NORMAL"
 sudo ovs-ofctl -O OpenFlow13 add-flow $sw "priority=400,tcp,nw_dst=10.0.0.2,tp_dst=5000,actions=CONTROLLER"
 sudo ovs-ofctl -O OpenFlow13 add-flow $sw "priority=400,tcp,nw_src=10.0.0.2,tp_src=5000,actions=NORMAL"
-
+sudo ovs-ofctl -O OpenFlow13 add-flow $sw "priority=400,dl_type=0x88cc,actions=NORMAL,CONTROLLER:65535"
 
 sudo ovs-ofctl -O OpenFlow13 add-flow $sw "priority=200,ip,nw_src=10.0.0.0/16,nw_dst=10.0.0.0/24,actions=push_vlan:0x8100,set_field:0x1064->vlan_vid,goto_table:1"
 
@@ -61,6 +61,7 @@ sudo ovs-ofctl -O OpenFlow13 add-flow $sw "table=2,priority=0,actions=CONTROLLER
 
 
 sudo ovs-ofctl -O OpenFlow13 add-flow $sw "table=3,priority=0,actions=drop"
+
 
 
 sudo ovs-ofctl -O OpenFlow13 dump-flows $sw

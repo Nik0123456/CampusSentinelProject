@@ -182,25 +182,26 @@ class FloodlightClient:
             logging.error("get_route_direct: DPID origen o destino faltante")
             return []
         
-        # Llamar API directamente
-        raw = self._get(f"/wm/topology/route/{src_dpid}/{src_port}/{dst_dpid}/{dst_port}/json")
+        # Llamar API 
+        api_url = f"/wm/topology/route/{src_dpid}/{src_port}/{dst_dpid}/{dst_port}/json"
+        logging.debug(f"get_route_direct: Consultando API: {api_url}")
+        raw = self._get(api_url)
         
         if not isinstance(raw, list):
-            logging.warning(f"get_route_direct: Respuesta inválida de Floodlight")
+            logging.warning(f"get_route_direct: Respuesta inválida de Floodlight. Tipo: {type(raw)}, Contenido: {raw}")
             return []
         
         route = []
         for hop in raw:
             if isinstance(hop, dict):
-                sw = hop.get('switch')
-                port_info = hop.get('port', {})
-                port = port_info.get('portNumber') if isinstance(port_info, dict) else None
+                sw = hop.get('switch') #DPID del switch del salto
+                port = hop.get('port', {}).get('portNumber') #Puerto del switch del salto
                 
                 if sw and isinstance(port, int):
                     # Evitar duplicados consecutivos
-                    if not route or route[-1] != {"switch": sw, "port": port}:
+                    if not route or route[-1] != (sw, port): #Evita redundancia de un mismo switch:port
                         route.append({"switch": sw, "port": port})
-        
+
         logging.debug(f"get_route_direct: Ruta obtenida con {len(route)} hops")
         return route
     
@@ -213,7 +214,7 @@ class FloodlightClient:
         return self.get_route_direct(src_dpid, src_port, dst_dpid, dst_port)
 
     def build_route(self, route):
-        """Construye hops de switch con in_port y out_port desde una ruta
+        """Convierte secuencia [{switch, port}, ...] a saltos por switch con in_port/out_port
         
         Args:
             route: Lista de dicts con 'switch' y 'port'

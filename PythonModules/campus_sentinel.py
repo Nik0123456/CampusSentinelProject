@@ -359,6 +359,8 @@ def get_top_used_permissions(user_id, limit=10):
 def install_permission_flows(user_ip, user_dpid, user_port, permission, flow_prefix="perm"):
     """Instala flows bidireccionales para un permiso específico siguiendo el pipeline OpenFlow
     
+    NOTA: user_port debe ser entero antes de llamar a esta función
+    
     PIPELINE:
     - Tabla 2 (Permisos): Solo en switch inicial - match granular (src+dst+port)
     - Tabla 3 (Forwarding): Switches intermedios y finales - match solo dst_ip
@@ -382,12 +384,15 @@ def install_permission_flows(user_ip, user_dpid, user_port, permission, flow_pre
         
         # Obtener datos del servicio desde la BD (ya no se usa get_attachment_points)
         service_dpid = permission.get('serviceDPID')
-        service_port_hw = permission.get('serviceInPort')
+        service_port_hw = permission.get('serviceInPort') #Puerto fisico del Switch OpenFlow al que esta conectado el servidor
         service_mac = permission.get('serviceMAC', '00:00:00:00:00:00')
         
         if not service_dpid or service_port_hw is None:
             logging.error(f"Servicio {service_name} sin DPID/InPort en BD")
             return []
+        
+        # Convertir puerto a entero (puede venir como string de la BD)
+        service_port_hw = int(service_port_hw)
         
         # Determinar protocolo IP
         ip_proto = 6 if protocol == 'TCP' else (17 if protocol == 'UDP' else None)
@@ -395,7 +400,7 @@ def install_permission_flows(user_ip, user_dpid, user_port, permission, flow_pre
             logging.warning(f"Protocolo desconocido: {protocol}")
             return []
         
-        # Instalar flow de autenticación GRANULAR del servicio en Tabla 1 (anti-spoofing)
+        # Instalar flow de autenticación GRANULAR del servicio en Tabla 2
         # Valida que solo tráfico de SERVICIOS AUTORIZADOS (IP+Puerto+Protocolo) pueda salir
         server_auth_flow = install_server_auth_flow(service_dpid, service_port_hw, 
                                                      service_ip, service_mac, 
@@ -600,7 +605,7 @@ def packetin():
     mac = data['mac']
     ip = data['ip']
     dpid = data['dpid']
-    port = data['in_port']
+    port = int(data['in_port'])  # Convertir a entero
     
     # Información adicional para autorización (Tabla 2)
     dst_ip = data.get('dst_ip')
