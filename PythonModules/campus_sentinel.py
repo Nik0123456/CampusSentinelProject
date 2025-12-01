@@ -486,7 +486,7 @@ def install_permission_flows(user_ip, user_dpid, user_port, permission, flow_pre
                     "priority": "100",
                     "active": "true",
                     "eth_type": "0x0800",
-                    "vlan_vid": "0x1064",  # Match VLAN 100 (agregada en Tabla 0)
+                    "eth_vlan_vid": "0x1064",  # Match VLAN 100 (agregada en Tabla 0)
                     "ipv4_dst": service_ip,  # Solo match destino
                     "idle_timeout": str(SESSION_HOURS * 3600),
                     "actions": actions
@@ -531,7 +531,7 @@ def install_permission_flows(user_ip, user_dpid, user_port, permission, flow_pre
                 "priority": "100",
                 "active": "true",
                 "eth_type": "0x0800",
-                "vlan_vid": "0x1064",  # Match VLAN 100 (agregada en Tabla 0)
+                "eth_vlan_vid": "0x1064",  # Match VLAN 100 (agregada en Tabla 0)
                 "ipv4_dst": user_ip,  # Match destino = usuario
                 "idle_timeout": str(SESSION_HOURS * 3600),
                 "actions": actions
