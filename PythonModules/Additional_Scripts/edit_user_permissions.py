@@ -115,8 +115,8 @@ def add_permissions(user_id, service_ids):
             for perm_id in service_ids:
                 try:
                     cur.execute("""
-                        a INTO User_Permission_Usage (user_id, permission_id, usage_count, first_used, last_used)
-                        VALUES (%s, %s, 0, NOW(), NOW())
+                        INSERT IGNORE INTO User_Permission_Usage (user_id, permission_id, usage_count, last_used)
+                        VALUES (%s, %s, 0, NOW())
                     """, (user_id, perm_id))
                     if cur.rowcount > 0:
                         usage_initialized += 1
@@ -257,8 +257,8 @@ def sync_user_permission_usage(user_id):
             
             try:
                 cur.execute("""
-                    INSERT INTO User_Permission_Usage (user_id, permission_id, usage_count, first_used, last_used)
-                    VALUES (%s, %s, 0, NOW(), NOW())
+                    INSERT INTO User_Permission_Usage (user_id, permission_id, usage_count, last_used)
+                    VALUES (%s, %s, 0, NOW())
                 """, (user_id, perm_id))
                 
                 if cur.rowcount > 0:

@@ -581,8 +581,8 @@ def update_permission_usage(user_id, permission_id):
         
         # Insertar o actualizar registro
         cur.execute("""
-            INSERT INTO User_Permission_Usage (user_id, permission_id, usage_count, last_used, first_used)
-            VALUES (%s, %s, 1, NOW(), NOW())
+            INSERT INTO User_Permission_Usage (user_id, permission_id, usage_count, last_used)
+            VALUES (%s, %s, 1, NOW())
             ON DUPLICATE KEY UPDATE
                 usage_count = usage_count + 1,
                 last_used = NOW()
