@@ -364,7 +364,7 @@ def install_permission_flows(user_ip, user_dpid, user_port, permission, flow_pre
     PIPELINE:
     - Tabla 2 (Permisos): Solo en switch inicial - match granular (src+dst+port)
     - Tabla 3 (Forwarding): Switches intermedios y finales - match solo dst_ip
-    - strip_vlan: Solo en el último hop antes de entregar al destino
+    - pop_vlan: Solo en el último hop antes de entregar al destino
     
     Args:
         user_ip: IP del usuario
@@ -471,12 +471,12 @@ def install_permission_flows(user_ip, user_dpid, user_port, permission, flow_pre
                 # ====================================
                 # TABLA 3: Switches intermedios y final
                 # Match simplificado: solo dst_ip
-                # strip_vlan en el último hop
+                # pop_vlan en el último hop
                 # ====================================
                 flow_u2s_name = f"{flow_prefix}_{service_name}_u2s_t3_{idx}_{service_ip.replace('.', '_')}"
                 
-                # Construir acciones: strip_vlan si es último hop
-                actions = "strip_vlan," if is_last_hop else ""
+                # Construir acciones: pop_vlan si es último hop
+                actions = "pop_vlan," if is_last_hop else ""
                 actions += f"output={out_p}"
                 
                 flow_u2s = {
@@ -493,7 +493,7 @@ def install_permission_flows(user_ip, user_dpid, user_port, permission, flow_pre
                 
                 if floodlight.push_flow(flow_u2s):
                     flow_names.append(flow_u2s_name)
-                    hop_type = "final (strip_vlan)" if is_last_hop else "intermedio"
+                    hop_type = "final (pop_vlan)" if is_last_hop else "intermedio"
                     logging.debug(f"  → Tabla 3 ({hop_type}): {flow_u2s_name}")
         
         # ========================================
@@ -515,12 +515,12 @@ def install_permission_flows(user_ip, user_dpid, user_port, permission, flow_pre
             # ====================================
             # TABLA 3: Todos los switches en dirección de retorno
             # Match: dst_ip = user_ip
-            # strip_vlan en el último hop (entrega al usuario)
+            # pop_vlan en el último hop (entrega al usuario)
             # ====================================
             flow_s2u_name = f"{flow_prefix}_{service_name}_s2u_t3_{idx}_{user_ip.replace('.', '_')}"
             
-            # Construir acciones: strip_vlan solo en entrega final al usuario
-            actions = "strip_vlan," if is_last_hop_reverse else ""
+            # Construir acciones: pop_vlan solo en entrega final al usuario
+            actions = "pop_vlan," if is_last_hop_reverse else ""
             actions += f"output={out_p}"
             
             flow_s2u = {
@@ -537,7 +537,7 @@ def install_permission_flows(user_ip, user_dpid, user_port, permission, flow_pre
             
             if floodlight.push_flow(flow_s2u):
                 flow_names.append(flow_s2u_name)
-                hop_type = "final (strip_vlan)" if is_last_hop_reverse else ("origen" if is_first_hop_reverse else "intermedio")
+                hop_type = "final (pop_vlan)" if is_last_hop_reverse else ("origen" if is_first_hop_reverse else "intermedio")
                 logging.debug(f"  ← Tabla 3 retorno ({hop_type}): {flow_s2u_name}")
         
         logging.info(f"✓ Instalados {len(flow_names)} flows para {service_name}: "
