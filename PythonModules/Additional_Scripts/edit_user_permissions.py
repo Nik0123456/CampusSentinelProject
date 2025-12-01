@@ -205,15 +205,18 @@ def sync_user_permission_usage(user_id):
         conn = get_db()
         cur = conn.cursor(dictionary=True)
         
+        print(f"\n🔍 Analizando permisos para user_id={user_id}...")
+        
         # Obtener todos los permission_id que el usuario debería tener según sus AttributeValues
         cur.execute("""
-            SELECT DISTINCT p.id as permission_id
+            SELECT DISTINCT p.id as permission_id, p.serviceName
             FROM User_has_AttributeValue uhav
             JOIN Permission p ON p.attributevalue_id = uhav.attributevalue_id
             WHERE uhav.user_id = %s
+            ORDER BY p.id
         """, (user_id,))
         
-        expected_perms = [row['permission_id'] for row in cur.fetchall()]
+        expected_perms = cur.fetchall()
         
         if not expected_perms:
             print("\n⚠️  El usuario no tiene atributos asignados, no hay permisos que sincronizar")
@@ -221,32 +224,87 @@ def sync_user_permission_usage(user_id):
             conn.close()
             return 0
         
+        print(f"📋 Usuario tiene acceso a {len(expected_perms)} servicios según AttributeValues:")
+        for perm in expected_perms:
+            print(f"  • ID {perm['permission_id']}: {perm['serviceName']}")
+        
+        # Verificar cuáles ya existen en User_Permission_Usage
+        print(f"\n🔍 Verificando registros existentes en User_Permission_Usage...")
+        cur.execute("""
+            SELECT permission_id, usage_count 
+            FROM User_Permission_Usage 
+            WHERE user_id = %s
+        """, (user_id,))
+        
+        existing = cur.fetchall()
+        existing_ids = {row['permission_id'] for row in existing}
+        
+        print(f"📊 Registros existentes: {len(existing)}")
+        for ex in existing:
+            print(f"  • ID {ex['permission_id']}: usage_count={ex['usage_count']}")
+        
         # Insertar registros faltantes en User_Permission_Usage
+        print(f"\n🔧 Inicializando registros faltantes...")
         initialized = 0
-        for perm_id in expected_perms:
+        errors = 0
+        
+        for perm in expected_perms:
+            perm_id = perm['permission_id']
+            
+            if perm_id in existing_ids:
+                print(f"  ⊘ ID {perm_id} ({perm['serviceName']}): Ya existe, omitiendo")
+                continue
+            
             try:
                 cur.execute("""
-                    INSERT IGNORE INTO User_Permission_Usage (user_id, permission_id, usage_count, first_used, last_used)
+                    INSERT INTO User_Permission_Usage (user_id, permission_id, usage_count, first_used, last_used)
                     VALUES (%s, %s, 0, NOW(), NOW())
                 """, (user_id, perm_id))
+                
                 if cur.rowcount > 0:
                     initialized += 1
-            except mysql.connector.Error:
-                pass
+                    print(f"  ✓ ID {perm_id} ({perm['serviceName']}): Inicializado")
+                else:
+                    print(f"  ⚠️ ID {perm_id} ({perm['serviceName']}): INSERT retornó 0 filas")
+                    
+            except mysql.connector.Error as e:
+                errors += 1
+                print(f"  ✗ ID {perm_id} ({perm['serviceName']}): ERROR - {e}")
         
         conn.commit()
+        
+        # Verificar resultado final
+        print(f"\n🔍 Verificando resultado final...")
+        cur.execute("""
+            SELECT COUNT(*) as total 
+            FROM User_Permission_Usage 
+            WHERE user_id = %s
+        """, (user_id,))
+        final_count = cur.fetchone()['total']
+        print(f"📊 Total de registros en User_Permission_Usage: {final_count}")
+        
         cur.close()
         conn.close()
         
+        # Resumen
+        print("\n" + "=" * 80)
         if initialized > 0:
-            print(f"\n✅ Sincronizadas {initialized} estadísticas de uso faltantes")
+            print(f"✅ Sincronizadas {initialized} estadísticas de uso nuevas")
         else:
-            print("\n✅ Todas las estadísticas de uso ya estaban sincronizadas")
+            print("⚠️  No se inicializaron estadísticas nuevas")
+        
+        if errors > 0:
+            print(f"❌ {errors} errores durante la sincronización")
+        
+        print(f"📊 Total final: {final_count} registros en User_Permission_Usage")
+        print("=" * 80)
         
         return initialized
         
     except mysql.connector.Error as e:
         print(f"\n❌ Error al sincronizar estadísticas: {e}")
+        import traceback
+        traceback.print_exc()
         return 0
 
 def parse_selection(selection, valid_ids):
