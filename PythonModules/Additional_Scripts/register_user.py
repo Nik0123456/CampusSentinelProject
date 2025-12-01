@@ -144,6 +144,24 @@ def assign_services_to_user(user_id, service_ids):
             except mysql.connector.Error:
                 pass  # Ignorar duplicados
         
+        # Inicializar User_Permission_Usage con usage_count=0 para todos los servicios asignados
+        # Esto permite que el sistema de carga proactiva funcione desde el inicio
+        if service_ids:
+            usage_initialized = 0
+            for perm_id in service_ids:
+                try:
+                    cur.execute("""
+                        INSERT IGNORE INTO User_Permission_Usage (user_id, permission_id, usage_count, first_used, last_used)
+                        VALUES (%s, %s, 0, NOW(), NOW())
+                    """, (user_id, perm_id))
+                    if cur.rowcount > 0:
+                        usage_initialized += 1
+                except mysql.connector.Error:
+                    pass  # Ignorar duplicados
+            
+            if usage_initialized > 0:
+                print(f"✅ Inicializadas {usage_initialized} estadísticas de uso para el usuario")
+        
         conn.commit()
         cur.close()
         conn.close()

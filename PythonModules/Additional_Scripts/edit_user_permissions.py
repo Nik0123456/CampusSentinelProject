@@ -109,6 +109,23 @@ def add_permissions(user_id, service_ids):
             except mysql.connector.Error:
                 pass
         
+        # Inicializar User_Permission_Usage para los nuevos servicios
+        if service_ids:
+            usage_initialized = 0
+            for perm_id in service_ids:
+                try:
+                    cur.execute("""
+                        INSERT IGNORE INTO User_Permission_Usage (user_id, permission_id, usage_count, first_used, last_used)
+                        VALUES (%s, %s, 0, NOW(), NOW())
+                    """, (user_id, perm_id))
+                    if cur.rowcount > 0:
+                        usage_initialized += 1
+                except mysql.connector.Error:
+                    pass
+            
+            if usage_initialized > 0:
+                print(f"✅ Inicializadas {usage_initialized} estadísticas de uso")
+        
         conn.commit()
         cur.close()
         conn.close()
@@ -154,17 +171,18 @@ def revoke_permissions(user_id, service_ids):
             if cur.rowcount > 0:
                 revoked += 1
         
-        # Limpiar registros de uso huérfanos
-        cur.execute("""
-            DELETE upu FROM User_Permission_Usage upu
-            LEFT JOIN User_has_AttributeValue uhav 
-                ON upu.user_id = uhav.user_id 
-                AND upu.permission_id IN (
-                    SELECT p.id FROM Permission p 
-                    WHERE p.attributevalue_id = uhav.attributevalue_id
-                )
-            WHERE upu.user_id = %s AND uhav.user_id IS NULL
-        """, (user_id,))
+        # Limpiar registros de uso de los servicios revocados
+        # Obtener todos los permission_id que corresponden a los atributos revocados
+        if service_ids:
+            placeholders_perms = ','.join(['%s'] * len(service_ids))
+            cur.execute(f"""
+                DELETE FROM User_Permission_Usage
+                WHERE user_id = %s AND permission_id IN ({placeholders_perms})
+            """, [user_id] + service_ids)
+            
+            usage_deleted = cur.rowcount
+            if usage_deleted > 0:
+                print(f"✅ Eliminadas {usage_deleted} estadísticas de uso asociadas")
         
         conn.commit()
         cur.close()
