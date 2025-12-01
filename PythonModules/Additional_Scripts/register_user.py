@@ -146,31 +146,48 @@ def assign_services_to_user(user_id, service_ids):
         
         # Inicializar User_Permission_Usage con usage_count=0 para todos los servicios asignados
         # Esto permite que el sistema de carga proactiva funcione desde el inicio
-        if service_ids:
-            usage_initialized = 0
-            for perm_id in service_ids:
-                try:
-                    cur.execute("""
-                        INSERT IGNORE INTO User_Permission_Usage (user_id, permission_id, usage_count, first_used, last_used)
-                        VALUES (%s, %s, 0, NOW(), NOW())
-                    """, (user_id, perm_id))
-                    if cur.rowcount > 0:
-                        usage_initialized += 1
-                except mysql.connector.Error:
-                    pass  # Ignorar duplicados
-            
-            if usage_initialized > 0:
-                print(f"✅ Inicializadas {usage_initialized} estadísticas de uso para el usuario")
+        print(f"\n📊 Inicializando estadísticas de uso para {len(service_ids)} servicios...")
+        
+        usage_initialized = 0
+        usage_errors = 0
+        
+        for perm_id in service_ids:
+            try:
+                cur.execute("""
+                    INSERT IGNORE INTO User_Permission_Usage (user_id, permission_id, usage_count, first_used, last_used)
+                    VALUES (%s, %s, 0, NOW(), NOW())
+                """, (user_id, perm_id))
+                
+                if cur.rowcount > 0:
+                    usage_initialized += 1
+                    print(f"  ✓ Servicio ID {perm_id}: Estadística inicializada")
+                else:
+                    print(f"  ⊘ Servicio ID {perm_id}: Ya existía (IGNORE)")
+                    
+            except mysql.connector.Error as e:
+                usage_errors += 1
+                print(f"  ✗ Servicio ID {perm_id}: Error - {e}")
+        
+        # Resumen de inicialización
+        if usage_initialized > 0:
+            print(f"\n✅ Inicializadas {usage_initialized} estadísticas de uso nuevas")
+        else:
+            print(f"\n⚠️  No se inicializaron estadísticas nuevas (pueden existir previamente)")
+        
+        if usage_errors > 0:
+            print(f"⚠️  {usage_errors} errores durante la inicialización")
         
         conn.commit()
         cur.close()
         conn.close()
         
-        print(f"✅ Asignados {inserted} atributos (roles/cursos) al usuario")
+        print(f"\n✅ Total: {inserted} atributos asignados al usuario")
         return inserted
         
     except mysql.connector.Error as e:
-        print(f"❌ Error al asignar servicios: {e}")
+        print(f"\n❌ Error al asignar servicios: {e}")
+        import traceback
+        traceback.print_exc()
         return 0
 
 def main():

@@ -115,7 +115,7 @@ def add_permissions(user_id, service_ids):
             for perm_id in service_ids:
                 try:
                     cur.execute("""
-                        INSERT IGNORE INTO User_Permission_Usage (user_id, permission_id, usage_count, first_used, last_used)
+                        a INTO User_Permission_Usage (user_id, permission_id, usage_count, first_used, last_used)
                         VALUES (%s, %s, 0, NOW(), NOW())
                     """, (user_id, perm_id))
                     if cur.rowcount > 0:
@@ -193,6 +193,60 @@ def revoke_permissions(user_id, service_ids):
         
     except mysql.connector.Error as e:
         print(f"\n❌ Error al revocar permisos: {e}")
+        return 0
+
+def sync_user_permission_usage(user_id):
+    """Sincroniza User_Permission_Usage con todos los permisos que el usuario debería tener
+    
+    Inicializa registros faltantes con usage_count=0 para todos los servicios
+    a los que el usuario tiene acceso según sus AttributeValues
+    """
+    try:
+        conn = get_db()
+        cur = conn.cursor(dictionary=True)
+        
+        # Obtener todos los permission_id que el usuario debería tener según sus AttributeValues
+        cur.execute("""
+            SELECT DISTINCT p.id as permission_id
+            FROM User_has_AttributeValue uhav
+            JOIN Permission p ON p.attributevalue_id = uhav.attributevalue_id
+            WHERE uhav.user_id = %s
+        """, (user_id,))
+        
+        expected_perms = [row['permission_id'] for row in cur.fetchall()]
+        
+        if not expected_perms:
+            print("\n⚠️  El usuario no tiene atributos asignados, no hay permisos que sincronizar")
+            cur.close()
+            conn.close()
+            return 0
+        
+        # Insertar registros faltantes en User_Permission_Usage
+        initialized = 0
+        for perm_id in expected_perms:
+            try:
+                cur.execute("""
+                    INSERT IGNORE INTO User_Permission_Usage (user_id, permission_id, usage_count, first_used, last_used)
+                    VALUES (%s, %s, 0, NOW(), NOW())
+                """, (user_id, perm_id))
+                if cur.rowcount > 0:
+                    initialized += 1
+            except mysql.connector.Error:
+                pass
+        
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        if initialized > 0:
+            print(f"\n✅ Sincronizadas {initialized} estadísticas de uso faltantes")
+        else:
+            print("\n✅ Todas las estadísticas de uso ya estaban sincronizadas")
+        
+        return initialized
+        
+    except mysql.connector.Error as e:
+        print(f"\n❌ Error al sincronizar estadísticas: {e}")
         return 0
 
 def parse_selection(selection, valid_ids):
@@ -332,13 +386,34 @@ def main():
     print("¿Qué deseas hacer?")
     print("  1) Agregar permisos")
     print("  2) Revocar permisos")
-    print("  3) Salir sin cambios")
+    print("  3) Sincronizar estadísticas de uso (User_Permission_Usage)")
+    print("  4) Salir sin cambios")
     print("=" * 80)
     
-    operation = input("\nOpción (1/2/3): ").strip()
+    operation = input("\nOpción (1/2/3/4): ").strip()
+    
+    if operation == '4':
+        print("👋 Saliendo sin cambios...")
+        exit(0)
     
     if operation == '3':
-        print("👋 Saliendo sin cambios...")
+        # Sincronizar User_Permission_Usage
+        print("\n" + "=" * 80)
+        print(" SINCRONIZACIÓN DE ESTADÍSTICAS")
+        print("=" * 80)
+        print("\nEsta operación inicializará registros en User_Permission_Usage")
+        print("para todos los servicios a los que el usuario tiene acceso,")
+        print("pero que aún no tienen estadísticas registradas (usage_count=0).")
+        print("\nEsto es útil para:")
+        print("  • Usuarios creados antes de implementar User_Permission_Usage")
+        print("  • Habilitar carga proactiva (HYBRID_MODE)")
+        print("  • Corregir inconsistencias en la base de datos")
+        
+        confirm = input("\n¿Continuar con la sincronización? (s/N): ").strip().lower()
+        if confirm == 's':
+            sync_user_permission_usage(user_id)
+        else:
+            print("❌ Sincronización cancelada")
         exit(0)
     
     if operation not in ['1', '2']:
