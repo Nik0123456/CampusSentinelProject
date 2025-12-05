@@ -1,77 +1,79 @@
 #!/bin/bash
-# load_flows.sh - Registrar flows DDoS en sFlow-RT vía API REST
+# load_flows_v3.sh
 
-SFLOW_RT_HOST="localhost"
-SFLOW_RT_PORT="8008"
-BASE_URL="http://${SFLOW_RT_HOST}:${SFLOW_RT_PORT}"
+SFLOW_RT_URL="http://localhost:8008"
 
-echo "[*] Esperando a que sFlow-RT esté arriba en ${BASE_URL} ..."
+echo "[*] Esperando sFlow-RT..."
 
-# Esperar hasta que /version responda o 30s
 for i in {1..30}; do
-  if curl -s "${BASE_URL}/version" >/dev/null 2>&1; then
-    echo "[*] sFlow-RT responde en ${BASE_URL}"
+  if curl -s "${SFLOW_RT_URL}/version" >/dev/null 2>&1; then
+    echo "[*] ✓ sFlow-RT disponible"
     break
   fi
-  echo "   - intento $i: aún no responde, esperando 1s..."
   sleep 1
 done
 
-if ! curl -s "${BASE_URL}/version" >/dev/null 2>&1; then
-  echo "[!] No se pudo contactar con sFlow-RT en ${BASE_URL} (timeout)"
-  exit 1
-fi
+echo "[*] Registrando flows optimizados..."
 
-echo "[*] Registrando flows DDoS..."
-
-# Flow 1: Tráfico por pares IP (origen → destino) en bytes
-curl -s -X PUT "${BASE_URL}/flow/ddos_bytes/json" \
+# Flow 1: Frames detallado (con agent e inputifindex)
+curl -s -X PUT "${SFLOW_RT_URL}/flow/ddos_frames_detailed/json" \
+  -H "Content-Type: application/json" \
   -d '{
-    "keys": "ipsource,ipdestination",
-    "value": "bytes",
-    "log": false
+    "keys": "ipsource,ipdestination,agent,inputifindex",
+    "value": "frames",
+    "log": false,
+    "timeout": 2,
+    "flowTimeout": 2
   }' >/dev/null
 
-# Flow 2: Tráfico por pares IP en paquetes
-curl -s -X PUT "${BASE_URL}/flow/ddos_frames/json" \
+# Flow 2: Bytes detallado
+curl -s -X PUT "${SFLOW_RT_URL}/flow/ddos_bytes_detailed/json" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "keys": "ipsource,ipdestination,agent,inputifindex",
+    "value": "bytes",
+    "log": false,
+    "timeout": 2,
+    "flowTimeout": 2
+  }' >/dev/null
+
+# Flow 3: Frames simple (compatibilidad)
+curl -s -X PUT "${SFLOW_RT_URL}/flow/ddos_frames/json" \
+  -H "Content-Type: application/json" \
   -d '{
     "keys": "ipsource,ipdestination",
     "value": "frames",
     "log": false
   }' >/dev/null
 
-# Flow 3: Top talkers (origen) por bytes
-curl -s -X PUT "${BASE_URL}/flow/ddos_talkers/json" \
+# Flow 4: Bytes simple
+curl -s -X PUT "${SFLOW_RT_URL}/flow/ddos_bytes/json" \
+  -H "Content-Type: application/json" \
   -d '{
-    "keys": "ipsource",
+    "keys": "ipsource,ipdestination",
     "value": "bytes",
     "log": false
   }' >/dev/null
 
-# Flow 4: Top destinations (destino) por bytes
-curl -s -X PUT "${BASE_URL}/flow/ddos_destinations/json" \
-  -d '{
-    "keys": "ipdestination",
-    "value": "bytes",
-    "log": false
-  }' >/dev/null
-
-# Flow 5: Tráfico por protocolo IP
-curl -s -X PUT "${BASE_URL}/flow/ddos_protocols/json" \
+# Flow 5: Por protocolo (diagnóstico)
+curl -s -X PUT "${SFLOW_RT_URL}/flow/ddos_protocols/json" \
+  -H "Content-Type: application/json" \
   -d '{
     "keys": "ipsource,ipdestination,ipprotocol",
     "value": "frames",
     "log": false
   }' >/dev/null
 
-# Flow 6: Puertos destino más atacados (TCP)
-curl -s -X PUT "${BASE_URL}/flow/ddos_ports/json" \
+# Flow 6: Puertos TCP
+curl -s -X PUT "${SFLOW_RT_URL}/flow/ddos_tcp_ports/json" \
+  -H "Content-Type: application/json" \
   -d '{
-    "keys": "ipdestination,tcpdestinationport",
+    "keys": "ipsource,ipdestination,tcpdestinationport",
     "value": "frames",
     "log": false
   }' >/dev/null
 
-echo "[*] Flows registrados. Comprobando definiciones:"
-
-curl -s "${BASE_URL}/flow/json" | jq || curl -s "${BASE_URL}/flow/json"
+echo "[*] ✅ Flows registrados"
+echo ""
+echo "Flows activos:"
+curl -s "${SFLOW_RT_URL}/flow/json" | jq -r 'keys[]' 2>/dev/null || curl -s "${SFLOW_RT_URL}/flow/json"
